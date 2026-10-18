@@ -2,7 +2,7 @@ import axios from "axios";
 
 const API_URL = "http://localhost:5000/api/auth";
 
-// Register user
+// Register user or exhibitor
 export const registerUser = async (userData) => {
   const response = await axios.post(
     `${API_URL}/register`,
@@ -17,6 +17,18 @@ export const loginUser = async (loginData) => {
   const response = await axios.post(
     `${API_URL}/login`,
     loginData
+  );
+
+  return response.data;
+};
+
+// Verify email
+export const verifyEmail = async (token) => {
+  const response = await axios.get(
+    `${API_URL}/verify-email`,
+    {
+      params: { token },
+    }
   );
 
   return response.data;

@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+
 import {
   FiEye,
   FiEyeOff,
   FiUserPlus,
+  FiMail,
+  FiCheckCircle,
 } from "react-icons/fi";
 
 import { registerUser } from "../../services/authService";
-import { useAuth } from "../../context/AuthContext";
 
 const Register = () => {
   const navigate = useNavigate();
-
-  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -22,32 +22,29 @@ const Register = () => {
     confirmPassword: "",
   });
 
-  const [showPassword, setShowPassword] =
-    useState(false);
-
+  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
 
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
+  // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData({
-      ...formData,
+    setFormData((previousData) => ({
+      ...previousData,
       [name]: value,
-    });
+    }));
 
     setError("");
+    setSuccess("");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    setError("");
-
+  // Validate form
+  const validateForm = () => {
     const {
       firstName,
       lastName,
@@ -56,29 +53,65 @@ const Register = () => {
       confirmPassword,
     } = formData;
 
-    // Check empty fields
     if (
-      !firstName ||
-      !lastName ||
-      !email ||
+      !firstName.trim() ||
+      !lastName.trim() ||
+      !email.trim() ||
       !password ||
       !confirmPassword
     ) {
-      setError("Please fill all fields.");
-      return;
+      return "Please fill in all fields.";
     }
 
-    // Check password length
-    if (password.length < 6) {
-      setError(
-        "Password must be at least 6 characters."
+    // Validate names
+    const nameRegex = /^[a-zA-Z\s'-]+$/;
+
+    if (!nameRegex.test(firstName.trim())) {
+      return "Please enter a valid first name.";
+    }
+
+    if (!nameRegex.test(lastName.trim())) {
+      return "Please enter a valid last name.";
+    }
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email.trim())) {
+      return "Please enter a valid email address.";
+    }
+
+    // Password must contain uppercase, lowercase,
+    // number, special character and minimum 8 characters.
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
+    if (!passwordRegex.test(password)) {
+      return (
+        "Password must contain at least 8 characters, " +
+        "one uppercase letter, one lowercase letter, " +
+        "one number, and one special character."
       );
-      return;
     }
 
-    // Check password match
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      return "Passwords do not match.";
+    }
+
+    return null;
+  };
+
+  // Submit registration form
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    const validationError = validateForm();
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -86,28 +119,29 @@ const Register = () => {
       setLoading(true);
 
       const response = await registerUser({
-        firstName,
-        lastName,
-        email,
-        password,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
       });
 
-      /*
-        AuthContext will:
-        1. Save token
-        2. Save user
-        3. Update React authentication state
-      */
-      login(response);
-
-      alert("Registration successful!");
-
-      navigate("/");
-    } catch (error) {
-      console.error(
-        "Registration Error:",
-        error
+      // Do not log the user in before email verification.
+      // The backend should send the verification email.
+      setSuccess(
+        response.message ||
+          "Registration successful! Please check your email to verify your account."
       );
+
+      // Clear sensitive form fields
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      });
+    } catch (error) {
+      console.error("Registration Error:", error);
 
       setError(
         error.response?.data?.message ||
@@ -128,7 +162,6 @@ const Register = () => {
       <div className="container">
         <div className="row justify-content-center">
           <div className="col-lg-5 col-md-7 col-sm-10">
-
             <div
               className="card border-0 shadow-lg"
               style={{
@@ -136,7 +169,6 @@ const Register = () => {
                 overflow: "hidden",
               }}
             >
-
               {/* Header */}
               <div
                 className="text-center p-4"
@@ -171,10 +203,9 @@ const Register = () => {
                 </p>
               </div>
 
-              {/* Form */}
+              {/* Form Body */}
               <div className="card-body p-4 p-md-5">
-
-                {/* Error */}
+                {/* Error Message */}
                 {error && (
                   <div
                     className="alert alert-danger"
@@ -184,139 +215,202 @@ const Register = () => {
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit}>
+                {/* Success Message */}
+                {success && (
+                  <div
+                    className="alert alert-success"
+                    role="alert"
+                  >
+                    <div className="d-flex align-items-start">
+                      <FiCheckCircle
+                        size={22}
+                        className="me-2 mt-1 flex-shrink-0"
+                      />
 
-                  {/* First + Last Name */}
+                      <div>
+                        <strong>Registration Successful!</strong>
+
+                        <p className="mb-2 mt-1">
+                          {success}
+                        </p>
+
+                        <p className="mb-2">
+                          Please check your inbox and spam folder
+                          for the verification email.
+                        </p>
+
+                        <button
+                          type="button"
+                          className="btn btn-success btn-sm"
+                          onClick={() => navigate("/login")}
+                        >
+                          Continue to Login
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} noValidate>
+                  {/* First Name and Last Name */}
                   <div className="row">
-
                     <div className="col-md-6 mb-3">
-                      <label className="form-label fw-semibold">
+                      <label
+                        htmlFor="firstName"
+                        className="form-label fw-semibold"
+                      >
                         First Name
                       </label>
 
                       <input
+                        id="firstName"
                         type="text"
                         name="firstName"
                         value={formData.firstName}
                         onChange={handleChange}
                         className="form-control"
                         placeholder="Enter first name"
-                        disabled={loading}
+                        autoComplete="given-name"
+                        maxLength={50}
+                        disabled={loading || !!success}
                       />
                     </div>
 
                     <div className="col-md-6 mb-3">
-                      <label className="form-label fw-semibold">
+                      <label
+                        htmlFor="lastName"
+                        className="form-label fw-semibold"
+                      >
                         Last Name
                       </label>
 
                       <input
+                        id="lastName"
                         type="text"
                         name="lastName"
                         value={formData.lastName}
                         onChange={handleChange}
                         className="form-control"
                         placeholder="Enter last name"
-                        disabled={loading}
+                        autoComplete="family-name"
+                        maxLength={50}
+                        disabled={loading || !!success}
                       />
                     </div>
-
                   </div>
 
                   {/* Email */}
                   <div className="mb-3">
-                    <label className="form-label fw-semibold">
+                    <label
+                      htmlFor="email"
+                      className="form-label fw-semibold"
+                    >
                       Email Address
                     </label>
 
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="form-control"
-                      placeholder="Enter email address"
-                      disabled={loading}
-                    />
+                    <div className="input-group">
+                      <span className="input-group-text">
+                        <FiMail />
+                      </span>
+
+                      <input
+                        id="email"
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="form-control"
+                        placeholder="Enter email address"
+                        autoComplete="email"
+                        maxLength={254}
+                        disabled={loading || !!success}
+                      />
+                    </div>
                   </div>
 
                   {/* Password */}
                   <div className="mb-3">
-                    <label className="form-label fw-semibold">
+                    <label
+                      htmlFor="password"
+                      className="form-label fw-semibold"
+                    >
                       Password
                     </label>
 
                     <div className="input-group">
                       <input
-                        type={
-                          showPassword
-                            ? "text"
-                            : "password"
-                        }
+                        id="password"
+                        type={showPassword ? "text" : "password"}
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
                         className="form-control"
-                        placeholder="Enter password"
-                        disabled={loading}
+                        placeholder="Create a strong password"
+                        autoComplete="new-password"
+                        disabled={loading || !!success}
                       />
 
                       <button
                         type="button"
                         className="btn btn-outline-secondary"
-                        onClick={() =>
-                          setShowPassword(
-                            !showPassword
-                          )
+                        aria-label={
+                          showPassword
+                            ? "Hide password"
+                            : "Show password"
                         }
-                        disabled={loading}
+                        onClick={() =>
+                          setShowPassword((previous) => !previous)
+                        }
+                        disabled={loading || !!success}
                       >
-                        {showPassword ? (
-                          <FiEyeOff />
-                        ) : (
-                          <FiEye />
-                        )}
+                        {showPassword ? <FiEyeOff /> : <FiEye />}
                       </button>
                     </div>
 
                     <small className="text-muted">
-                      Password must contain at least
-                      6 characters.
+                      Minimum 8 characters, including uppercase,
+                      lowercase, a number and a special character.
                     </small>
                   </div>
 
                   {/* Confirm Password */}
                   <div className="mb-4">
-                    <label className="form-label fw-semibold">
+                    <label
+                      htmlFor="confirmPassword"
+                      className="form-label fw-semibold"
+                    >
                       Confirm Password
                     </label>
 
                     <div className="input-group">
                       <input
+                        id="confirmPassword"
                         type={
-                          showConfirmPassword
-                            ? "text"
-                            : "password"
+                          showConfirmPassword ? "text" : "password"
                         }
                         name="confirmPassword"
-                        value={
-                          formData.confirmPassword
-                        }
+                        value={formData.confirmPassword}
                         onChange={handleChange}
                         className="form-control"
                         placeholder="Confirm your password"
-                        disabled={loading}
+                        autoComplete="new-password"
+                        disabled={loading || !!success}
                       />
 
                       <button
                         type="button"
                         className="btn btn-outline-secondary"
+                        aria-label={
+                          showConfirmPassword
+                            ? "Hide confirm password"
+                            : "Show confirm password"
+                        }
                         onClick={() =>
                           setShowConfirmPassword(
-                            !showConfirmPassword
+                            (previous) => !previous
                           )
                         }
-                        disabled={loading}
+                        disabled={loading || !!success}
                       >
                         {showConfirmPassword ? (
                           <FiEyeOff />
@@ -327,52 +421,56 @@ const Register = () => {
                     </div>
                   </div>
 
-                  {/* Register Button */}
-                  <button
-                    type="submit"
-                    className="btn w-100 py-2 fw-semibold"
-                    disabled={loading}
-                    style={{
-                      backgroundColor: "#b78342",
-                      color: "white",
-                      border: "none",
-                    }}
-                  >
-                    {loading ? (
-                      <>
-                        <span
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                        ></span>
+                  {/* Submit */}
+                  {!success && (
+                    <button
+                      type="submit"
+                      className="btn w-100 py-2 fw-semibold"
+                      disabled={loading}
+                      style={{
+                        backgroundColor: "#b78342",
+                        color: "white",
+                        border: "none",
+                      }}
+                    >
+                      {loading ? (
+                        <>
+                          <span
+                            className="spinner-border spinner-border-sm me-2"
+                            role="status"
+                            aria-hidden="true"
+                          />
 
-                        Creating Account...
-                      </>
-                    ) : (
-                      <>
-                        <FiUserPlus className="me-2" />
-                        Create Account
-                      </>
-                    )}
-                  </button>
+                          Creating Account...
+                        </>
+                      ) : (
+                        <>
+                          <FiUserPlus className="me-2" />
+                          Create Account
+                        </>
+                      )}
+                    </button>
+                  )}
                 </form>
 
                 {/* Login Link */}
-                <div className="text-center mt-4">
-                  <p className="text-muted mb-0">
-                    Already have an account?
-                  </p>
+                {!success && (
+                  <div className="text-center mt-4">
+                    <p className="text-muted mb-1">
+                      Already have an account?
+                    </p>
 
-                  <Link
-                    to="/login"
-                    className="fw-semibold"
-                    style={{
-                      color: "#b78342",
-                    }}
-                  >
-                    Login to MUSEO
-                  </Link>
-                </div>
-
+                    <Link
+                      to="/login"
+                      className="fw-semibold text-decoration-none"
+                      style={{
+                        color: "#b78342",
+                      }}
+                    >
+                      Login to MUSEO
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -380,12 +478,11 @@ const Register = () => {
             <div className="text-center mt-3">
               <Link
                 to="/"
-                className="text-muted"
+                className="text-muted text-decoration-none"
               >
                 ← Back to Home
               </Link>
             </div>
-
           </div>
         </div>
       </div>
