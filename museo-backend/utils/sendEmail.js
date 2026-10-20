@@ -1,4 +1,4 @@
-const nodemailer = require("nodemailer");
+import nodemailer from "nodemailer";
 
 const sendEmail = async ({ to, subject, html }) => {
   const {
@@ -10,25 +10,35 @@ const sendEmail = async ({ to, subject, html }) => {
   } = process.env;
 
   if (!EMAIL_HOST || !EMAIL_USER || !EMAIL_PASS) {
-    throw new Error("Email configuration is missing in .env");
+    throw new Error(
+      "Email configuration is missing. Please check your .env file."
+    );
   }
+
+  const port = Number(EMAIL_PORT || 587);
 
   const transporter = nodemailer.createTransport({
     host: EMAIL_HOST,
-    port: Number(EMAIL_PORT || 587),
-    secure: Number(EMAIL_PORT || 587) === 465,
+    port,
+    secure: port === 465,
     auth: {
       user: EMAIL_USER,
       pass: EMAIL_PASS,
     },
   });
 
-  return transporter.sendMail({
+  const mailOptions = {
     from: EMAIL_FROM || EMAIL_USER,
     to,
     subject,
     html,
-  });
+  };
+
+  const result = await transporter.sendMail(mailOptions);
+
+  console.log("Email sent successfully:", result.messageId);
+
+  return result;
 };
 
-module.exports = sendEmail;
+export default sendEmail;
